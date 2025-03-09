@@ -13,7 +13,7 @@
 #define CLASS_NAME "test2_roulette_class"
 
 // GPIO pins for LEDs
-static int gpio_pins[] = {5, 6, 17, 27, 22, 12, 16, 20, 21};
+static int gpio_pins[] = {23, 6, 17, 27, 22, 12, 16, 20, 21};
 #define NUM_LEDS (sizeof(gpio_pins) / sizeof(gpio_pins[0]))
 
 static dev_t dev_number;
