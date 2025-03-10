@@ -1,10 +1,7 @@
-obj-m += test2_roulette_driver.o
-KDIR := /lib/modules/$(shell uname -r)/build
-PWD := $(shell pwd)
+obj-m += test2_roulette.o
 
 all:
-        $(MAKE) -C $(KDIR) M=$(PWD) modules
-        gcc -o test2_user_app test2_user_app.c -lpthread
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 clean:
-        $(MAKE) -C $(KDIR) M=$(PWD) clean
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
