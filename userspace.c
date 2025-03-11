@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#define DEVICE "/dev/roulette_driver"
+#define DEVICE "/dev/devicedriver"
 
 int main() {
     int fd;
@@ -19,12 +19,17 @@ int main() {
         return 1;
     }
 
+    printf("Device opened successfully.\n");
+
     if (write(fd, "1", 1) < 0) {
         perror("Failed to write to device");
         close(fd);
         return 1;
     }
-    close(fd);
+
+    printf("Spin command sent successfully.\n");
+
+    close(fd); // Close after writing to allow reading operation to function.
 
     // Delay to allow spin to complete (ensure kernel finishes LED animation)
     sleep(2);
@@ -38,14 +43,15 @@ int main() {
 
     ssize_t ret = read(fd, buffer, sizeof(buffer) - 1);
     if (ret < 0) {
-        perror("Read failed");
+        perror("Failed to read from device");
         close(fd);
         return 1;
     }
 
-    buffer[ret] = '\0'; // null-terminate result
+    buffer[ret] = '\0'; // Null-terminate result
     printf("Winning LED: GPIO pin %s\n", buffer);
-    close(fd);
+
+    close(fd); // Close after reading.
 
     return 0;
 }

@@ -5,11 +5,12 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/random.h>
+#include <linux/mutex.h>  // Include mutex header for synchronization
 
 #define DEVICE_NAME "roulette_driver"
 #define CLASS_NAME "roulette_driver"
 
-static int gpio_pins[] = {23, 6, 17, 27, 22, 12 , 16, 20, 21};
+static int gpio_pins[] = {535, 518, 529, 539, 534, 524, 528, 532, 533};  // Corrected offsets
 #define NUM_LEDS (sizeof(gpio_pins) / sizeof(gpio_pins[0]))
 
 static dev_t dev_number;
@@ -17,6 +18,9 @@ static struct cdev roulette_cdev;
 static struct class *roulette_class;
 
 static int winning_led = -1;
+
+// Mutex to prevent concurrent access
+static DEFINE_MUTEX(roulette_mutex);
 
 // Function prototypes
 static int dev_open(struct inode *, struct file *);
@@ -44,25 +48,34 @@ static int dev_release(struct inode *inodep, struct file *filep) {
 }
 
 // Write function - spin the wheel and pick winner
-// Write function - spin the wheel and pick winner
 static ssize_t dev_write(struct file *filep, const char __user *buffer, size_t len, loff_t *offset) {
     int i, j;
-    int rounds = 40; // Total LED cycles
+    int rounds = 40;  // Total LED cycles
+
+    if (!mutex_trylock(&roulette_mutex)) {
+        printk(KERN_WARNING "dev_write: Device is already in use.\n");
+        return -EBUSY;  // Return error if device is already in use
+    }
+
     get_random_bytes(&winning_led, sizeof(winning_led));
     winning_led = (winning_led < 0 ? -winning_led : winning_led) % NUM_LEDS;
 
     printk(KERN_INFO "dev_write: Spinning to select winning LED...\n");
 
-    // Set all LEDs to off
+    // Set all LEDs to off and configure GPIO pins
     for (i = 0; i < NUM_LEDS; i++) {
-        gpio_request(gpio_pins[i], "sysfs");
-        gpio_direction_output(gpio_pins[i], 0);
+        if (gpio_request(gpio_pins[i], "sysfs")) {
+            printk(KERN_WARNING "GPIO %d request failed\n", gpio_pins[i]);
+        } else {
+            gpio_direction_output(gpio_pins[i], 0);  // Ensure they are set as outputs and turned off
+            printk(KERN_INFO "GPIO %d configured as output\n", gpio_pins[i]);
+        }
     }
 
     // Spin the LEDs and slowly increase speed
     for (i = 0; i < rounds + winning_led; i++) {
-        int current_led;  // Renamed the variable to avoid conflict
-        current_led = i % NUM_LEDS;  // Assign the value to current_led
+        int current_led;
+        current_led = i % NUM_LEDS;
         for (j = 0; j < NUM_LEDS; j++) {
             gpio_set_value(gpio_pins[j], 0);  // Turn off all LEDs
         }
@@ -71,11 +84,12 @@ static ssize_t dev_write(struct file *filep, const char __user *buffer, size_t l
     }
 
     // Highlight the winning LED
+    printk(KERN_INFO "dev_write: Winning LED is GPIO pin %d\n", gpio_pins[winning_led]);
     for (i = 0; i < NUM_LEDS; i++) {
         gpio_set_value(gpio_pins[i], i == winning_led);  // Set the winning LED
     }
 
-    printk(KERN_INFO "dev_write: Winning LED index is %d (GPIO %d)\n", winning_led, gpio_pins[winning_led]);
+    mutex_unlock(&roulette_mutex);  // Unlock the mutex after operation
     return len;
 }
 
