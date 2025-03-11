@@ -17,6 +17,7 @@ def update_terminal(text):
 
 def build_driver():
     """Runs `make` to compile the driver."""
+    
     update_terminal("\n[INFO] Running: make\n")
     process = subprocess.Popen("make", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=DRIVER_DIR)
 
@@ -26,9 +27,14 @@ def build_driver():
         update_terminal(line.strip())
 
     process.wait()
+    update_terminal("\n[INFO] Make Complete\n")
 
 def load_driver():
-    """Loads the driver and creates the device file with the detected major number."""
+    """
+    - Loads the driver
+    - creates the device file
+    """
+    
     update_terminal("\n[INFO] Running: sudo insmod devicedriver.ko\n")
     subprocess.run(f"sudo insmod {DRIVER_DIR}/{MODULE_NAME}", shell=True)
 
@@ -40,12 +46,15 @@ def load_driver():
         major_number = match.group(1)
         update_terminal(f"[INFO] Major number detected: {major_number}")
         update_terminal(f"\n[INFO] Running: sudo mknod {DEVICE_PATH} c {major_number} 0\n")
-        subprocess.run(f"sudo mknod {DEVICE_PATH} c {major_number} 0", shell=True)
+        process = subprocess.run(f"sudo mknod {DEVICE_PATH} c {major_number} 0", shell=True)
+        process.wait()
+        update_terminal("\n[INFO] Driver Loaded Successfully\n")
     else:
         update_terminal("[ERROR] Could not detect major number. Check dmesg manually.")
 
 def run_userspace():
     """Compiles and runs the userspace application."""
+    
     update_terminal("\n[INFO] Running: gcc userspace.c -o userspace -lpthread\n")
     process = subprocess.Popen(f"gcc {DRIVER_DIR}/{USERSPACE_FILE} -o {DRIVER_DIR}/userspace -lpthread", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
@@ -67,7 +76,12 @@ def run_userspace():
     process.wait()
 
 def unload_driver():
-    """Unloads the driver, removes the device file, and cleans the build."""
+    """
+    - Unloads the driver
+    - removes the device file
+    - cleans the build.
+    """
+    
     update_terminal("\n[INFO] Running: sudo rmmod devicedriver\n")
     subprocess.run("sudo rmmod devicedriver", shell=True)
 
@@ -83,6 +97,7 @@ def unload_driver():
         update_terminal(line.strip())
 
     process.wait()
+    update_terminal("\n[INFO] Driver Unloaded Successfully\n")
 
 # Create Tkinter GUI
 root = tk.Tk()
@@ -100,7 +115,7 @@ build_button.pack(pady=5)
 load_button = tk.Button(frame, text="Load Driver", font=("Arial", 12), command=lambda: threading.Thread(target=load_driver, daemon=True).start())
 load_button.pack(pady=5)
 
-run_button = tk.Button(frame, text="Run User App", font=("Arial", 12), command=lambda: threading.Thread(target=run_userspace, daemon=True).start())
+run_button = tk.Button(frame, text="Spin Wheel", font=("Arial", 12), command=lambda: threading.Thread(target=run_userspace, daemon=True).start())
 run_button.pack(pady=5)
 
 unload_button = tk.Button(frame, text="Unload Module", font=("Arial", 12), command=lambda: threading.Thread(target=unload_driver, daemon=True).start())
