@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
-#define DEVICE "/dev/devicedriver"
+#define DEVICE "/dev/roulette_driver"
 
 int main() {
     int fd;
+    char buffer[64];
 
     printf("Starting Roulette Spin...\n");
 
@@ -17,13 +19,15 @@ int main() {
         return 1;
     }
 
-    // Write a dummy value to start the spin
     if (write(fd, "1", 1) < 0) {
         perror("Failed to write to device");
         close(fd);
         return 1;
     }
-    close(fd); // Done with writing
+    close(fd);
+
+    // Delay to allow spin to complete (ensure kernel finishes LED animation)
+    sleep(2);
 
     // Open the device for reading the result
     fd = open(DEVICE, O_RDONLY);
@@ -32,15 +36,15 @@ int main() {
         return 1;
     }
 
-    char buffer[64];
-    ssize_t ret = read(fd, buffer, sizeof(buffer));
+    ssize_t ret = read(fd, buffer, sizeof(buffer) - 1);
     if (ret < 0) {
         perror("Read failed");
         close(fd);
         return 1;
     }
 
-    printf("Winning LED: %s\n", buffer);
+    buffer[ret] = '\0'; // null-terminate result
+    printf("Winning LED: GPIO pin %s\n", buffer);
     close(fd);
 
     return 0;
