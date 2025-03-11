@@ -1,93 +1,88 @@
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
-import os
+from tkinter import scrolledtext
 import subprocess
-import time
+import re
 import threading
 
 # Paths
-DRIVER_DIR = "/home/hoodie/Device-Driver"  # Change this to your driver directory
+DRIVER_DIR = "/path/to/your/driver"  # Change to your actual driver path
+MODULE_NAME = "devicedriver.ko"
+USERSPACE_FILE = "userspace.c"
 DEVICE_PATH = "/dev/devicedriver"
-MODULE_NAME = "devicedriver"
-MODULE_PATH = f"{DRIVER_DIR}/devicedriver.ko"
-
-def run_command(command):
-    """Run a shell command and update the terminal output."""
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    
-    # Read the output in real-time
-    for line in iter(process.stdout.readline, ''):
-        update_terminal(line)
-    for line in iter(process.stderr.readline, ''):
-        update_terminal(line)
-
-    process.stdout.close()
-    process.stderr.close()
-    process.wait()
 
 def update_terminal(text):
-    """Update the terminal display in the Tkinter window."""
-    terminal.insert(tk.END, text)
+    """Append text to the terminal display."""
+    terminal.insert(tk.END, text + "\n")
     terminal.see(tk.END)  # Auto-scroll to latest output
 
 def build_driver():
     """Runs `make` to compile the driver."""
-    update_terminal("\n[INFO] Building driver...\n")
-    threading.Thread(target=run_command, args=(f"make -C {DRIVER_DIR}",), daemon=True).start()
+    update_terminal("\n[INFO] Running: make\n")
+    process = subprocess.Popen("make", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=DRIVER_DIR)
 
-def clean_build():
-    """Runs `make clean` to remove compiled files."""
-    update_terminal("\n[INFO] Cleaning build...\n")
-    threading.Thread(target=run_command, args=(f"make -C {DRIVER_DIR} clean",), daemon=True).start()
+    for line in process.stdout:
+        update_terminal(line.strip())
+    for line in process.stderr:
+        update_terminal(line.strip())
 
-def check_module():
-    """Check if the module is loaded."""
-    result = subprocess.run("lsmod", capture_output=True, text=True, shell=True)
-    return MODULE_NAME in result.stdout
+    process.wait()
 
-def load_module():
-    """Loads the device driver module if not loaded."""
-    if not check_module():
-        update_terminal("\n[INFO] Loading driver...\n")
-        threading.Thread(target=run_command, args=(f"sudo insmod {MODULE_PATH}",), daemon=True).start()
-        create_device_file()
+def load_driver():
+    """Loads the driver and creates the device file with the detected major number."""
+    update_terminal("\n[INFO] Running: sudo insmod devicedriver.ko\n")
+    subprocess.run(f"sudo insmod {DRIVER_DIR}/{MODULE_NAME}", shell=True)
+
+    update_terminal("\n[INFO] Checking major number...\n")
+    dmesg_output = subprocess.run("dmesg | tail -20", shell=True, capture_output=True, text=True).stdout
+    match = re.search(r"Allocated major number (\d+)", dmesg_output)
+
+    if match:
+        major_number = match.group(1)
+        update_terminal(f"[INFO] Major number detected: {major_number}")
+        update_terminal(f"\n[INFO] Running: sudo mknod {DEVICE_PATH} c {major_number} 0\n")
+        subprocess.run(f"sudo mknod {DEVICE_PATH} c {major_number} 0", shell=True)
     else:
-        update_terminal("\n[INFO] Device driver already loaded.\n")
+        update_terminal("[ERROR] Could not detect major number. Check dmesg manually.")
 
-def unload_module():
-    """Unloads the device driver module."""
-    if check_module():
-        update_terminal("\n[INFO] Unloading driver...\n")
-        threading.Thread(target=run_command, args=(f"sudo rmmod {MODULE_NAME}",), daemon=True).start()
-    else:
-        update_terminal("\n[ERROR] Device driver is not loaded.\n")
+def run_userspace():
+    """Compiles and runs the userspace application."""
+    update_terminal("\n[INFO] Running: gcc userspace.c -o userspace -lpthread\n")
+    process = subprocess.Popen(f"gcc {DRIVER_DIR}/{USERSPACE_FILE} -o {DRIVER_DIR}/userspace -lpthread", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-def create_device_file():
-    """Ensure the /dev/devicedriver file exists."""
-    if not os.path.exists(DEVICE_PATH):
-        os.system(f"sudo mknod {DEVICE_PATH} c 240 0")  # 240 is an example major number
-        os.system(f"sudo chmod 666 {DEVICE_PATH}")  # Set read/write permissions
+    for line in process.stdout:
+        update_terminal(line.strip())
+    for line in process.stderr:
+        update_terminal(line.strip())
 
-def spin_wheel():
-    """Triggers the spin by writing to the device driver."""
-    try:
-        update_terminal("\n[INFO] Spinning the roulette wheel...\n")
-        with open(DEVICE_PATH, "w") as dev:
-            dev.write("1")  # Write to the device to trigger spin
-        time.sleep(2)  # Wait for spin to complete
-        get_result()
-    except Exception as e:
-        update_terminal(f"[ERROR] Failed to spin wheel: {e}\n")
+    process.wait()
+    
+    update_terminal("\n[INFO] Running: sudo ./userspace\n")
+    process = subprocess.Popen(f"sudo {DRIVER_DIR}/userspace", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-def get_result():
-    """Reads the winning GPIO pin from the device driver."""
-    try:
-        with open(DEVICE_PATH, "r") as dev:
-            result = dev.read().strip()
-        result_label.config(text=f"Winning GPIO Pin: {result}")
-        update_terminal(f"[INFO] Winning GPIO Pin: {result}\n")
-    except Exception as e:
-        update_terminal(f"[ERROR] Failed to get result: {e}\n")
+    for line in process.stdout:
+        update_terminal(line.strip())
+    for line in process.stderr:
+        update_terminal(line.strip())
+
+    process.wait()
+
+def unload_driver():
+    """Unloads the driver, removes the device file, and cleans the build."""
+    update_terminal("\n[INFO] Running: sudo rmmod devicedriver\n")
+    subprocess.run("sudo rmmod devicedriver", shell=True)
+
+    update_terminal("\n[INFO] Running: sudo rm /dev/devicedriver\n")
+    subprocess.run("sudo rm /dev/devicedriver", shell=True)
+
+    update_terminal("\n[INFO] Running: make clean\n")
+    process = subprocess.Popen("make clean", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=DRIVER_DIR)
+
+    for line in process.stdout:
+        update_terminal(line.strip())
+    for line in process.stderr:
+        update_terminal(line.strip())
+
+    process.wait()
 
 # Create Tkinter GUI
 root = tk.Tk()
@@ -99,23 +94,16 @@ frame.pack(pady=20)
 title_label = tk.Label(frame, text="Raspberry Pi Roulette", font=("Arial", 16, "bold"))
 title_label.pack()
 
-# Buttons
-build_button = tk.Button(frame, text="Build Driver", font=("Arial", 12), command=build_driver)
+build_button = tk.Button(frame, text="Build Driver", font=("Arial", 12), command=lambda: threading.Thread(target=build_driver, daemon=True).start())
 build_button.pack(pady=5)
 
-clean_button = tk.Button(frame, text="Clean Build", font=("Arial", 12), command=clean_build)
-clean_button.pack(pady=5)
-
-load_button = tk.Button(frame, text="Load Driver", font=("Arial", 12), command=load_module)
+load_button = tk.Button(frame, text="Load Driver", font=("Arial", 12), command=lambda: threading.Thread(target=load_driver, daemon=True).start())
 load_button.pack(pady=5)
 
-spin_button = tk.Button(frame, text="Spin", font=("Arial", 14), command=spin_wheel)
-spin_button.pack(pady=10)
+run_button = tk.Button(frame, text="Run User App", font=("Arial", 12), command=lambda: threading.Thread(target=run_userspace, daemon=True).start())
+run_button.pack(pady=5)
 
-result_label = tk.Label(frame, text="Press 'Spin' to play!", font=("Arial", 14))
-result_label.pack()
-
-unload_button = tk.Button(frame, text="Unload Driver", font=("Arial", 12), command=unload_module)
+unload_button = tk.Button(frame, text="Unload Module", font=("Arial", 12), command=lambda: threading.Thread(target=unload_driver, daemon=True).start())
 unload_button.pack(pady=5)
 
 # Terminal Output Display
@@ -124,57 +112,6 @@ terminal_label.pack(pady=5)
 
 terminal = scrolledtext.ScrolledText(frame, width=60, height=15, font=("Courier", 10))
 terminal.pack()
-
-# Run the Tkinter event loop
-root.mainloop()
-import tkinter as tk
-from tkinter import messagebox
-import time
-
-def load_driver():
-    """Placeholder function for loading the device driver."""
-    messagebox.showinfo("Info", "Loading device driver... (Not implemented yet)")
-
-def unload_driver():
-    """Placeholder function for unloading the device driver."""
-    messagebox.showinfo("Info", "Unloading device driver... (Not implemented yet)")
-
-def spin_wheel():
-    """Placeholder function for spinning the roulette wheel."""
-    spin_button.config(state=tk.DISABLED)  # Disable button while spinning
-    result_label.config(text="Spinning... 🎰")
-    root.update_idletasks()
-    
-    time.sleep(2)  # Simulated delay
-    
-    # Fake result for now
-    winning_pin = "GPIO 534"  
-    result_label.config(text=f"Winning GPIO Pin: {winning_pin}")
-    
-    spin_button.config(state=tk.NORMAL)  # Re-enable button
-
-# Create Tkinter window
-root = tk.Tk()
-root.title("Raspberry Pi Roulette")
-
-frame = tk.Frame(root, padx=20, pady=20)
-frame.pack(pady=20)
-
-title_label = tk.Label(frame, text="Raspberry Pi Roulette", font=("Arial", 16, "bold"))
-title_label.pack()
-
-# Buttons
-load_button = tk.Button(frame, text="Load Driver", font=("Arial", 12), command=load_driver)
-load_button.pack(pady=5)
-
-spin_button = tk.Button(frame, text="Spin", font=("Arial", 14), command=spin_wheel)
-spin_button.pack(pady=10)
-
-result_label = tk.Label(frame, text="Press 'Spin' to play!", font=("Arial", 14))
-result_label.pack()
-
-unload_button = tk.Button(frame, text="Unload Driver", font=("Arial", 12), command=unload_driver)
-unload_button.pack(pady=5)
 
 # Run the Tkinter event loop
 root.mainloop()
