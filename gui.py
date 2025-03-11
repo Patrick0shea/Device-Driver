@@ -3,9 +3,13 @@ from tkinter import scrolledtext
 import subprocess
 import re
 import threading
+import os
+
+# Automatically detect the script's directory
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Paths
-DRIVER_DIR = "/path/to/your/driver"  # Change to your actual driver path
+DRIVER_DIR = SCRIPT_DIR  # Use detected script directory
 MODULE_NAME = "devicedriver.ko"
 USERSPACE_FILE = "userspace.c"
 DEVICE_PATH = "/dev/devicedriver"
