@@ -52,7 +52,6 @@ def load_driver():
         update_terminal(f"[INFO] Major number detected: {major_number}")
         update_terminal(f"\n[INFO] Running: sudo mknod {DEVICE_PATH} c {major_number} 0\n")
         process = subprocess.run(f"sudo mknod {DEVICE_PATH} c {major_number} 0", shell=True)
-        process.wait()
         update_terminal("\n[INFO] Driver Loaded Successfully\n")
     else:
         update_terminal("[ERROR] Could not detect major number. Check dmesg manually.")
