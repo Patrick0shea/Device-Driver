@@ -56,7 +56,7 @@ def load_driver():
     else:
         try: 
             major_number = 236 # (default value)
-            update_terminal(f"[INFO] Major number detected: {major_number}")
+            update_terminal(f"[ERROR] Major number could not be found\n Defaulting to Major Number = {major_number}")
             update_terminal(f"\n[INFO] Running: sudo mknod {DEVICE_PATH} c {major_number} 0\n")
             process = subprocess.run(f"sudo mknod {DEVICE_PATH} c {major_number} 0", shell=True)
             update_terminal("\n[INFO] Driver Loaded Successfully\n")
