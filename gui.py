@@ -13,6 +13,7 @@ DRIVER_DIR = SCRIPT_DIR  # Use detected script directory
 MODULE_NAME = "devicedriver.ko"
 USERSPACE_FILE = "userspace.c"
 DEVICE_PATH = "/dev/devicedriver"
+PROC_FILE = "/proc/roulette_winner"
 
 def update_terminal(text):
     """Append text to the terminal display."""
@@ -103,6 +104,19 @@ def unload_driver():
     process.wait()
     update_terminal("\n[INFO] Driver Unloaded Successfully\n")
 
+def read_proc_file():
+    """Reads the /proc/roulette_stats file and displays its contents."""
+    update_terminal("\n[INFO] Reading /proc/roulette_stats...\n")
+    
+    try:
+        with open(PROC_FILE, "r") as file:
+            content = file.read().strip()
+        update_terminal(f"[INFO] Proc File Content:\n{content}\n")
+    except Exception as e:
+        update_terminal(f"[ERROR] Failed to read {PROC_FILE}: {e}")
+
+    
+
 # Create Tkinter GUI
 root = tk.Tk()
 root.title("Raspberry Pi Roulette")
@@ -121,6 +135,9 @@ load_button.pack(pady=5)
 
 run_button = tk.Button(frame, text="Spin Wheel", font=("Arial", 12), command=lambda: threading.Thread(target=run_userspace, daemon=True).start())
 run_button.pack(pady=5)
+
+read_proc_button = tk.Button(frame, text="Read /proc File", font=("Arial", 12), command=lambda: threading.Thread(target=read_proc_file, daemon=True).start())
+read_proc_button.pack(pady=5)
 
 unload_button = tk.Button(frame, text="Unload Module", font=("Arial", 12), command=lambda: threading.Thread(target=unload_driver, daemon=True).start())
 unload_button.pack(pady=5)
