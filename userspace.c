@@ -8,7 +8,7 @@
 int main() {
     int fd;
 
-    printf("Starting Test2 Roulette Spin...\n");
+    printf("Starting Roulette Spin...\n");
 
     // Open the device for writing to trigger the spin
     fd = open(DEVICE, O_WRONLY);
