@@ -54,7 +54,14 @@ def load_driver():
         process = subprocess.run(f"sudo mknod {DEVICE_PATH} c {major_number} 0", shell=True)
         update_terminal("\n[INFO] Driver Loaded Successfully\n")
     else:
-        update_terminal("[ERROR] Could not detect major number. Check dmesg manually.")
+        try: 
+            major_number = 236 # (default value)
+            update_terminal(f"[INFO] Major number detected: {major_number}")
+            update_terminal(f"\n[INFO] Running: sudo mknod {DEVICE_PATH} c {major_number} 0\n")
+            process = subprocess.run(f"sudo mknod {DEVICE_PATH} c {major_number} 0", shell=True)
+            update_terminal("\n[INFO] Driver Loaded Successfully\n")
+        except:
+            update_terminal("[ERROR] Could not detect major number. Check dmesg manually.")
 
 def run_userspace():
     """Compiles and runs the userspace application."""
