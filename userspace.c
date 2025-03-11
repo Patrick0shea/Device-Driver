@@ -3,7 +3,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define DEVICE "/dev/test2_roulette"
+#define DEVICE "/dev/devicedriver"
 
 int main() {
     int fd;
@@ -32,7 +32,7 @@ int main() {
         return 1;
     }
 
-    char buffer[16];
+    char buffer[64];
     ssize_t ret = read(fd, buffer, sizeof(buffer));
     if (ret < 0) {
         perror("Read failed");
