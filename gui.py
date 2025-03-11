@@ -135,7 +135,7 @@ load_button.pack(pady=5)
 run_button = tk.Button(frame, text="Spin Wheel", font=("Arial", 12), command=lambda: threading.Thread(target=run_userspace, daemon=True).start())
 run_button.pack(pady=5)
 
-read_proc_button = tk.Button(frame, text="Read /proc File", font=("Arial", 12), command=lambda: threading.Thread(target=read_proc_file, daemon=True).start())
+read_proc_button = tk.Button(frame, text="Show Stats", font=("Arial", 12), command=lambda: threading.Thread(target=read_proc_file, daemon=True).start())
 read_proc_button.pack(pady=5)
 
 unload_button = tk.Button(frame, text="Unload Module", font=("Arial", 12), command=lambda: threading.Thread(target=unload_driver, daemon=True).start())
