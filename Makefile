@@ -1,4 +1,4 @@
-obj-m += test.o
+obj-m += devicedriver.o
 
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
